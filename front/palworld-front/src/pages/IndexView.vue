@@ -11,7 +11,6 @@
         <q-tab name="command" label="服务器指令" />
         <q-tab name="player-manage" label="玩家管理" />
         <q-tab name="player-white" label="玩家白名单" />
-        <q-tab name="advanced" label="SAV修改" @click="redirectToSav" />
         <q-tab name="server-check" label="主机管理" />
         <q-tab name="save-manage" label="存档管理" />
       </q-tabs>
