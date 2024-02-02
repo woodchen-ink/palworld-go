@@ -16,13 +16,23 @@ type BackupTask struct {
 }
 
 func NewBackupTask(config config.Config) *BackupTask {
+	var ticker *time.Ticker
+	if config.BackupInterval > 0 {
+		ticker = time.NewTicker(time.Duration(config.BackupInterval) * time.Second)
+	}
+
 	return &BackupTask{
 		Config: config,
-		Ticker: time.NewTicker(time.Duration(config.BackupInterval) * time.Second),
+		Ticker: ticker,
 	}
 }
 
 func (task *BackupTask) Schedule() {
+	if task.Ticker == nil {
+		// 如果 Ticker 为 nil，不需要进行定时备份
+		return
+	}
+
 	for range task.Ticker.C {
 		task.RunBackup()
 	}
@@ -60,9 +70,6 @@ func (task *BackupTask) RunBackup() {
 	} else {
 		log.Printf("Backup completed successfully: %s", destinationPath)
 	}
-
-	// 清理旧备份
-	task.CleanOldBackups()
 }
 
 // copyDir 递归复制目录及其内容

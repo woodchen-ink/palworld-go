@@ -77,6 +77,12 @@
           />
           <q-input
             filled
+            v-model="config.steamCmdPath"
+            label="SteamCmd路径(一键更新需要)"
+            class="q-my-md"
+          />
+          <q-input
+            filled
             v-model="config.address"
             label="Rcon地址(只包含ip)大部分场景,默认127.0.0.1即可!"
             class="q-my-md"
@@ -95,6 +101,13 @@
             v-model.number="config.backupInterval"
             type="number"
             label="备份间隔（秒）"
+            class="q-my-md"
+          />
+          <q-input
+            filled
+            v-model.number="config.saveDeleteDays"
+            type="number"
+            label="备份自动删除(删除n天以前的备份)"
             class="q-my-md"
           />
           <q-input
@@ -729,8 +742,8 @@
           <!-- 禁用固定帧率设置 -->
           <q-toggle
             v-model="config.engine.engine.bUseFixedFrameRate"
-            label="启用动态帧率"
-            hint="动态帧率，允许游戏服务端动态调整帧率以获得最佳性能。"
+            label="固定帧率"
+            hint="固定帧率，允许游戏服务端动态固定帧率以获得最佳性能。"
             class="q-my-md"
           />
 
@@ -857,6 +870,12 @@
               color="primary"
               label="保存"
               @click="saveConfig"
+              class="q-mt-md"
+            />
+            <q-btn
+              color="primary"
+              label="刷新"
+              @click="refreshConfig"
               class="q-mt-md"
             />
             <q-input
@@ -1141,6 +1160,15 @@ async function updateStatus() {
     console.error(err);
   }
 }
+
+const refreshConfig = async () => {
+  try {
+    const response = await axios.get('/api/getjson');
+    config.value = response.data;
+  } catch (error) {
+    console.error('Error fetching configuration:', error);
+  }
+};
 
 // 设置定时器来定期更新状态
 const updateTimer = window.setInterval(() => {
