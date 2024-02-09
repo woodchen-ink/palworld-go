@@ -37,7 +37,7 @@ func main() {
 	// 打印配置以确认
 	fmt.Printf("当前配置: %#v\n", jsonconfig)
 	//给程序整个标题
-	sys.SetTitle("Palworld管理")
+	sys.SetTitle(jsonconfig.Title + " Palworld管理")
 
 	// 设置监控和自动重启
 	supervisor := NewSupervisor(jsonconfig)
@@ -48,7 +48,7 @@ func main() {
 	go backupTask.Schedule()
 
 	if !supervisor.isServiceRunning() {
-		supervisor.restartService()
+		sys.RestartService(jsonconfig)
 	} else {
 		fmt.Printf("当前服务端正常运行中,守护和内存助手已启动\n")
 	}
