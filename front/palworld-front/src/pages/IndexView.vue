@@ -63,12 +63,22 @@
           />
           <q-toggle
             v-model="config.useDll"
-            label="自动注入UE4SS和可输入命令控制台DLL"
+            label="自动注入UE4SS和可输入命令控制台DLL(发中文rcon)"
             class="q-my-md"
           />
           <q-toggle
             v-model="config.gameService"
             label="是否采用systemctl方式管理游戏服务"
+            class="q-my-md"
+          />
+          <q-toggle
+            v-model="config.enableUe4Debug"
+            label="是否开启UE4窗口(关闭可以解决闪退,内存占用问题)"
+            class="q-my-md"
+          />
+          <q-toggle
+            v-model="config.enableEngineSetting"
+            label="是否启用引擎配置,部分电脑修改引擎配置会卡顿,可关闭"
             class="q-my-md"
           />
           <q-input
