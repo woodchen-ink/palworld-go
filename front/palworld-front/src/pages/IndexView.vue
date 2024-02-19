@@ -38,13 +38,6 @@
             @click="restartServer"
             class="q-mt-md"
           />
-           <!-- 答疑按钮 -->
-           <q-btn
-           color="secondary"
-           label="遇到问题,答疑按钮"
-           @click="getGroupLink"
-           class="q-mt-md"
-         />
           <!-- 文本输入框 -->
           <q-input
             filled
@@ -1254,11 +1247,6 @@ const fillCommand = (cmd) => {
 };
 
 //服务器检测
-
-const getGroupLink = () => {
-  window.location.href =
-    'https://qm.qq.com/cgi-bin/qm/qr?k=7aDJFyxLC6a450LMZfzG9Q1lwWy2veQj&jump_from=webapi&authKey=Im38dkervx6ISKg78NudQZgZnZv/O4bmb8f8CFrgMmJKY+MH5LsVNJ+KdJB5byY1';
-};
 
 async function updateStatus() {
   try {
