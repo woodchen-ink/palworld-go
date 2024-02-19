@@ -303,7 +303,13 @@ func (c *Client) readPump(config config.Config) {
 		// 检查消息是否以"Broadcast"开头 且注入了DLL 可以使用第三方rcon
 		if strings.HasPrefix(string(message), "broadcast") && config.UseDll {
 			// 使用本地方式发送
-			base := "http://127.0.0.1:53000/rcon?text="
+			dllPort, err := strconv.Atoi(config.DllPort)
+			if err != nil {
+				log.Printf("Error converting DllPort from string to int: %v", err)
+				// 處理錯誤，例如返回或設置一個默認值
+				return
+			}
+			base := "http://127.0.0.1:" + strconv.Itoa(dllPort) + "/rcon?text="
 			messageText := url.QueryEscape(string(message))
 			fullURL := base + messageText
 
@@ -414,12 +420,14 @@ func HandleSaveJSON(c *gin.Context, cfg config.Config) {
 	} else {
 		fmt.Println("Game world settings saved successfully.")
 	}
-
-	err = config.WriteEngineSettings(&newConfig, newConfig.Engine)
-	if err != nil {
-		fmt.Println("Error writing Engine settings:", err)
-	} else {
-		fmt.Println("Engine settings saved successfully.")
+	// 写引擎配置
+	if newConfig.EnableEngineSetting {
+		err = config.WriteEngineSettings(&newConfig, newConfig.Engine)
+		if err != nil {
+			fmt.Println("Error writing Engine settings:", err)
+		} else {
+			fmt.Println("Engine settings saved successfully.")
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Config updated successfully"})
@@ -567,8 +575,11 @@ func HandleLoginRequest(c *gin.Context, config config.Config) {
 func checkCredentials(username, password string, jsonconfig config.Config) bool {
 	serverUsername := jsonconfig.WorldSettings.ServerName
 	serverPassword := jsonconfig.WorldSettings.AdminPassword
-	fmt.Printf("有用户使用serverUsername:%v serverPassword:%v 进行登入\n", username, password)
-	fmt.Printf("登入密码serverUsername:%v serverPassword:%v 进行登入\n", serverUsername, serverPassword)
+	fmt.Printf("有用户正尝试使用 用户名:%v 密码:%v 进行登入\n", username, password)
+	fmt.Printf("A user is attempting to log in with Username: %v Password: %v\n", username, password)
+
+	fmt.Printf("请使用默认登入密码[%v] 默认密码[%v] 进行登入,不包含[],遇到问题可到QQ群:587997911 请教\n", serverUsername, serverPassword)
+	fmt.Printf("please use default account[%v] default password[%v] to login, not include []\n", serverUsername, serverPassword)
 	return username == serverUsername && password == serverPassword
 }
 
