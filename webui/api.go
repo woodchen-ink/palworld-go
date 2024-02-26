@@ -212,6 +212,11 @@ func CombinedMiddleware(config config.Config, db *bbolt.DB) gin.HandlerFunc {
 				HandleSetUnban(c, config)
 				return
 			}
+			// 处理 /api/getplayernum 的Get请求
+			if c.Request.URL.Path == "/api/getplayernum" && c.Request.Method == http.MethodGet {
+				listPlayerCounts(c, config, db)
+				return
+			}
 
 		} else {
 			// 否则，处理静态文件请求
@@ -472,10 +477,19 @@ func HandleRestart(c *gin.Context, cfg config.Config) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: Invalid cookie"})
 		return
 	}
+	if !cfg.EnableRebootLater {
+		// Cookie验证通过后，执行重启操作
+		sys.KillProcess(cfg)
+		sys.RestartService(cfg)
+	} else {
+		//延迟60秒关闭 然后不设置status.SetManualServerShutdown(true) 守护会拉起服务器
+		err = tool.Shutdown(cfg, "60", cfg.MaintenanceWarningMessage)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+	}
 
-	// Cookie验证通过后，执行重启操作
-	sys.KillProcess()
-	sys.RestartService(cfg)
 	c.JSON(http.StatusOK, gin.H{"message": "Restart initiated"})
 
 }
@@ -515,12 +529,21 @@ func HandleStop(c *gin.Context, cfg config.Config) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: Invalid cookie"})
 		return
 	}
-
-	// 终止进程
-	if err := sys.KillProcess(); err != nil {
-		log.Printf("Failed to kill existing process: %v", err)
-		// 可以选择在此处返回，也可以继续尝试启动新进程
+	if !cfg.EnableRebootLater {
+		// 终止进程
+		if err := sys.KillProcess(cfg); err != nil {
+			log.Printf("Failed to kill existing process: %v", err)
+			// 可以选择在此处返回，也可以继续尝试启动新进程
+		}
+	} else {
+		// 调用tool.Shutdown来安排重启
+		err = tool.Shutdown(cfg, "60", cfg.MaintenanceWarningMessage)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
 	}
+
 	status.SetManualServerShutdown(true)
 	c.JSON(http.StatusOK, gin.H{"message": "Stop initiated"})
 
@@ -578,7 +601,7 @@ func checkCredentials(username, password string, jsonconfig config.Config) bool 
 	fmt.Printf("有用户正尝试使用 用户名:%v 密码:%v 进行登入\n", username, password)
 	fmt.Printf("A user is attempting to log in with Username: %v Password: %v\n", username, password)
 
-	fmt.Printf("请使用默认登入密码[%v] 默认密码[%v] 进行登入,不包含[],遇到问题可到QQ群:587997911 请教\n", serverUsername, serverPassword)
+	fmt.Printf("请使用默认登入密码[%v] 默认密码[%v] 进行登入,不包含[]\n", serverUsername, serverPassword)
 	fmt.Printf("please use default account[%v] default password[%v] to login, not include []\n", serverUsername, serverPassword)
 	return username == serverUsername && password == serverPassword
 }
@@ -748,6 +771,39 @@ func listPlayer(c *gin.Context, config config.Config, db *bbolt.DB) {
 	c.JSON(http.StatusOK, allPlayers)
 }
 
+// 简化的函数，返回总玩家数量和在线玩家数量
+func listPlayerCounts(c *gin.Context, config config.Config, db *bbolt.DB) {
+	totalPlayers := 0
+	onlinePlayers := 0
+
+	// 方法获取当前在线玩家的列表
+	onlinePlayerNames, err := tool.GetCurrentOnlinePlayers(db)
+	if err != nil {
+		log.Println("Error fetching current players:", err)
+		onlinePlayerNames = []string{} // 如果获取失败，假设为空列表
+	}
+	onlinePlayers = len(onlinePlayerNames) // 在线玩家数量
+
+	err = db.View(func(tx *bbolt.Tx) error {
+		b := tx.Bucket([]byte("players"))
+		if b == nil {
+			return fmt.Errorf("players bucket not found")
+		}
+		totalPlayers = b.Stats().KeyN // 总玩家数量，假设每个键对应一个玩家
+		return nil
+	})
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 返回总玩家数量和在线玩家数量
+	c.JSON(http.StatusOK, gin.H{
+		"total_players":  totalPlayers,
+		"online_players": onlinePlayers,
+	})
+}
+
 // Handler for /api/kickorban
 func handleKickOrBan(c *gin.Context, config config.Config, db *bbolt.DB) {
 	var req KickOrBanRequest
@@ -840,7 +896,7 @@ func handleChangeSave(c *gin.Context, config config.Config) {
 	}
 
 	// 首先，尝试终止同名进程
-	if err := sys.KillProcess(); err != nil {
+	if err := sys.KillProcess(config); err != nil {
 		log.Printf("Failed to kill existing process: %v", err)
 		// 可以选择在此处返回，也可以继续尝试启动新进程
 	}
@@ -875,7 +931,7 @@ func handleChangeSave(c *gin.Context, config config.Config) {
 	}
 
 	// 存档更换成功后
-	sys.KillProcess()
+	sys.KillProcess(config)
 	sys.RestartService(config)
 
 	c.JSON(http.StatusOK, gin.H{"message": "Save changed successfully"})
@@ -1172,7 +1228,7 @@ func handleUpdate(c *gin.Context, config config.Config) {
 	}
 
 	// 终止当前服务器进程
-	if err := sys.KillProcess(); err != nil {
+	if err := sys.KillProcess(config); err != nil {
 		log.Printf("Failed to stop the server for update: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to stop the server for update"})
 	}
