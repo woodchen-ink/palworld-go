@@ -14,6 +14,7 @@ jobs:
     name: Build on ${{ matrix.os }} for ${{ matrix.goarch }}
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: linux
@@ -29,38 +30,30 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
 
     - name: Set up Go
-      uses: actions/setup-go@v2
+      uses: actions/setup-go@v5
       with:
-        go-version: '1.21.1' # Set to specific Go version.
-
+        go-version: '1.23'
+        cache: true
 
     - name: Set up Node.js
-      uses: actions/setup-node@v2
+      uses: actions/setup-node@v4
       with:
-        node-version: '20.9.0' # 使用最新的 LTS 版本
-
-    - name: Cache Node modules
-      uses: actions/cache@v2
-      with:
-        path: |
-          front/palworld-front/node_modules
-          ~/.npm
-        key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-        restore-keys: |
-          ${{ runner.os }}-node-
+        node-version: '22'
+        cache: 'npm'
+        cache-dependency-path: 'front/palworld-front/package-lock.json'
 
     - name: Install Quasar CLI and dependencies
+      working-directory: front/palworld-front
       run: |
-        cd front/palworld-front
         npm install -g @quasar/cli
-        npm install
+        npm ci
 
     - name: Build Quasar Project
+      working-directory: front/palworld-front
       run: |
-        cd front/palworld-front
         quasar build
 
     - name: Create output directory
@@ -72,78 +65,44 @@ jobs:
         GOARCH: ${{ matrix.goarch }}
         CGO_ENABLED: 0
       run: |
+        OUTPUT_NAME="palworld-go-${{ matrix.os }}-${{ matrix.goarch }}"
         if [ "$GOOS" = "windows" ]; then
-          go build -ldflags="-s -w" -o output/palworld-go-${{ matrix.os }}-${{ matrix.goarch }}.exe
-        else
-          go build -ldflags="-s -w" -o output/palworld-go-${{ matrix.os }}-${{ matrix.goarch }}
+          OUTPUT_NAME="${OUTPUT_NAME}.exe"
         fi
+        go build -v -ldflags="-s -w" -o "output/${OUTPUT_NAME}"
 
-    - name: Compress executable files with UPX (except for palworld-go-android-arm64)
+    - name: Compress executable files with UPX
       run: |
-        sudo apt-get update
-        sudo apt-get install -y upx
-        if [[ "${{ matrix.os }}" == *"windows"* ]]; then
-          FILENAME="output/palworld-go-${{ matrix.os }}-${{ matrix.goarch }}.exe"
-        else
-          FILENAME="output/palworld-go-${{ matrix.os }}-${{ matrix.goarch }}"
+        sudo apt-get update && sudo apt-get install -y upx
+        OUTPUT_NAME="palworld-go-${{ matrix.os }}-${{ matrix.goarch }}"
+        if [ "$GOOS" = "windows" ]; then
+          OUTPUT_NAME="${OUTPUT_NAME}.exe"
         fi
-        if [[ "${{ matrix.os }}" == "android" && "${{ matrix.goarch }}" == "arm64" ]]; then
-          echo "Skipping UPX compression for $FILENAME"
-        else
-          upx --best --lzma "$FILENAME"
+        if [[ "${{ matrix.os }}" != "android" || "${{ matrix.goarch }}" != "arm64" ]]; then
+          upx --best --lzma "output/${OUTPUT_NAME}" || echo "UPX compression failed, continuing with uncompressed binary"
         fi
 
     - name: Upload artifacts
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: palworld-go-${{ matrix.os }}-${{ matrix.goarch }}
-        path: output/palworld-go-${{ matrix.os }}-${{ matrix.goarch }}${{ endsWith(matrix.os, 'windows') && '.exe' || '' }}
+        path: output/palworld-go-${{ matrix.os }}-${{ matrix.goarch }}${{ matrix.os == 'windows' && '.exe' || '' }}
+        retention-days: 5
 
   prepare_release:
     needs: build
     runs-on: ubuntu-latest
+    if: github.event_name == 'push' && contains(github.ref, 'refs/tags/')
     steps:
-      - name: Generate unique tag name with timestamp
-        id: unique_tag
-        run: echo "::set-output name=tag::$(date +'%Y%m%d%H%M%S')"
-        
       - name: Download all artifacts
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v4
         with:
           path: output
 
       - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
+        uses: softprops/action-gh-release@v1
+        with:
+          files: output/**/*
+          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ steps.unique_tag.outputs.tag }}
-          release_name: Release ${{ steps.unique_tag.outputs.tag }}
-          draft: false
-
-      - name: Upload Release Assets
-        run: |
-          for dir in output/*; do
-            if [ -d "$dir" ]; then
-              for file in "$dir"/*; do
-                if [ -f "$file" ]; then
-                  asset_name=$(basename "$file")
-                  echo "Uploading ${asset_name}"
-                  GITHUB_UPLOAD_URL=${{ steps.create_release.outputs.upload_url }}
-                  GITHUB_UPLOAD_URL="${GITHUB_UPLOAD_URL%\{*}"
-                  GITHUB_UPLOAD_URL="${GITHUB_UPLOAD_URL%\?*}"
-                  curl \
-                  -X POST \
-                  -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-                  -H "Content-Type: application/octet-stream" \
-                  --data-binary @"${file}" \
-                  "${GITHUB_UPLOAD_URL}?name=${asset_name}&label=${asset_name}"
-                else
-                  echo "Expected a file in ${dir}, but found something else."
-                fi
-              done
-            else
-              echo "Expected ${dir} to be a directory."
-            fi
-          done
