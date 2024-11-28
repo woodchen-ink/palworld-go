@@ -51,7 +51,7 @@ jobs:
       working-directory: front/palworld-front
       run: |
         npm install -g @quasar/cli
-        npm ci --legacy-peer-deps
+        npm install
 
     - name: Build Quasar Project
       working-directory: front/palworld-front
