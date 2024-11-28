@@ -1,5 +1,9 @@
 name: Cross Compile Go Project
 
+# 在最上方添加权限配置
+permissions:
+  contents: write  # 这个权限很重要，允许workflow创建release和上传文件
+
 on:
   pull_request:
     types: [opened, synchronize]
@@ -98,17 +102,31 @@ jobs:
   prepare_release:
     needs: build
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && contains(github.ref, 'refs/tags/')
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
           path: output
 
+      - name: Generate tag name
+        id: tag
+        run: |
+          echo "tag_name=v$(date +'%Y%m%d%H%M%S')" >> $GITHUB_OUTPUT
+
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
+          tag_name: ${{ steps.tag.outputs.tag_name }}
           files: output/**/*
           generate_release_notes: true
+          name: "Release ${{ steps.tag.outputs.tag_name }}"  # 添加release名称
+          body: |  # 添加release描述
+            自动构建发布于 ${{ steps.tag.outputs.tag_name }}
+            
+            ### 包含以下文件：
+            - Linux (amd64, arm64)
+            - macOS (amd64, arm64)
+            - Windows (amd64)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
