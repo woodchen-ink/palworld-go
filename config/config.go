@@ -61,6 +61,8 @@ type Config struct {
 	EnableEngineSetting       bool               `json:"enableEngineSetting"`       // 是否开启引擎设置
 	EnableBotNotification     bool               `json:"enableBotNotification"`     // 是否开启机器人广播
 	EnableRebootLater         bool               `json:"enableRebootLater"`         // 是否开启延时关闭&重启
+	OverrideDLL               bool               `json:"overrideDLL"`               // 是否由palgo中内置的dll覆盖游戏目录的dll
+	UsePalServerExe           bool               `json:"usePalserverexe"`           // 是否维持传统启动行为
 }
 
 // 默认配置
@@ -83,6 +85,8 @@ var defaultConfig = Config{
 	AutolaunchWebui:           false,
 	EnableUe4Debug:            false,
 	EnableEngineSetting:       true,
+	OverrideDLL:               true,
+	UsePalServerExe:           false,
 	BackupInterval:            1800,                                                        // 30 分钟
 	MemoryCheckInterval:       0,                                                           // 60 秒
 	MemoryUsageThreshold:      90,                                                          // 90%
@@ -169,6 +173,7 @@ type GameWorldSettings struct {
 	IsStartLocationSelectByMap          bool    `json:"isStartLocationSelectByMap"`
 	ExistPlayerAfterLogout              bool    `json:"existPlayerAfterLogout"`
 	EnableDefenseOtherGuildPlayer       bool    `json:"enableDefenseOtherGuildPlayer"`
+	ShowPlayerList                      bool    `json:"showPlayerList"`
 	CoopPlayerMaxNum                    int     `json:"coopPlayerMaxNum"`
 	ServerPlayerMaxNum                  int     `json:"serverPlayerMaxNum"`
 	ServerName                          string  `json:"serverName"`
@@ -447,6 +452,10 @@ func AutoConfigurePaths(config *Config) error {
 		status.SetsuccessReadGameWorldSettings(false)
 	} else {
 		config.WorldSettings = gameworldsettings
+		if config.WorldSettings.AdminPassword == "" {
+			config.WorldSettings.AdminPassword = "12345"
+			log.Println("设置默认登入密码为12345,为了你的服务器安全,请一定在管理面板的rcon密码处修改为其他密码.")
+		}
 		log.Println("从游戏parworldsetting.ini解析配置成功.")
 		log.Printf("从游戏parworldsetting.ini解析配置成功.%v", config.WorldSettings)
 		status.SetsuccessReadGameWorldSettings(true)
@@ -527,7 +536,7 @@ func ReadGameWorldSettings(config *Config) (*GameWorldSettings, error) {
 	section, err := cfg.GetSection(sectionName)
 	if err != nil {
 		fmt.Printf("初次使用，正在为您自动设置游戏默认参数\n")
-		settingsString = "(Difficulty=None,DayTimeSpeedRate=1.000000,NightTimeSpeedRate=1.000000,ExpRate=1.000000,PalCaptureRate=1.000000,PalSpawnNumRate=1.000000,PalDamageRateAttack=1.000000,PalDamageRateDefense=1.000000,PlayerDamageRateAttack=1.000000,PlayerDamageRateDefense=1.000000,PlayerStomachDecreaceRate=1.000000,PlayerStaminaDecreaceRate=1.000000,PlayerAutoHPRegeneRate=1.000000,PlayerAutoHpRegeneRateInSleep=1.000000,PalStomachDecreaceRate=1.000000,PalStaminaDecreaceRate=1.000000,PalAutoHPRegeneRate=1.000000,PalAutoHpRegeneRateInSleep=1.000000,BuildObjectDamageRate=1.000000,BuildObjectDeteriorationDamageRate=1.000000,CollectionDropRate=1.000000,CollectionObjectHpRate=1.000000,CollectionObjectRespawnSpeedRate=1.000000,EnemyDropItemRate=1.000000,DeathPenalty=All,bEnablePlayerToPlayerDamage=False,bEnableFriendlyFire=False,bEnableInvaderEnemy=True,bActiveUNKO=False,bEnableAimAssistPad=True,bEnableAimAssistKeyboard=False,DropItemMaxNum=3000,DropItemMaxNum_UNKO=100,BaseCampMaxNum=128,BaseCampWorkerMaxNum=15,DropItemAliveMaxHours=1.000000,bAutoResetGuildNoOnlinePlayers=False,AutoResetGuildTimeNoOnlinePlayers=72.000000,GuildPlayerMaxNum=20,PalEggDefaultHatchingTime=72.000000,WorkSpeedRate=1.000000,bIsMultiplay=False,bIsPvP=False,bCanPickupOtherGuildDeathPenaltyDrop=False,bEnableNonLoginPenalty=True,bEnableFastTravel=True,bIsStartLocationSelectByMap=True,bExistPlayerAfterLogout=False,bEnableDefenseOtherGuildPlayer=False,CoopPlayerMaxNum=4,ServerPlayerMaxNum=32,ServerName=\"palgo\",ServerDescription=\"https://github.com/Hoshinonyaruko/palworld-go\",AdminPassword=\"useradmin\",ServerPassword=\"\",PublicPort=8211,PublicIP=\"\",RCONEnabled=True,RCONPort=25575,Region=\"\",bUseAuth=True,BanListURL=\"https://api.palworldgame.com/api/banlist.txt\")"
+		settingsString = "(Difficulty=None,DayTimeSpeedRate=1.000000,NightTimeSpeedRate=1.000000,ExpRate=1.000000,PalCaptureRate=1.000000,PalSpawnNumRate=1.000000,PalDamageRateAttack=1.000000,PalDamageRateDefense=1.000000,PlayerDamageRateAttack=1.000000,PlayerDamageRateDefense=1.000000,PlayerStomachDecreaceRate=1.000000,PlayerStaminaDecreaceRate=1.000000,PlayerAutoHPRegeneRate=1.000000,PlayerAutoHpRegeneRateInSleep=1.000000,PalStomachDecreaceRate=1.000000,PalStaminaDecreaceRate=1.000000,PalAutoHPRegeneRate=1.000000,PalAutoHpRegeneRateInSleep=1.000000,BuildObjectDamageRate=1.000000,BuildObjectDeteriorationDamageRate=1.000000,CollectionDropRate=1.000000,CollectionObjectHpRate=1.000000,CollectionObjectRespawnSpeedRate=1.000000,EnemyDropItemRate=1.000000,DeathPenalty=All,bEnablePlayerToPlayerDamage=False,bEnableFriendlyFire=False,bEnableInvaderEnemy=True,bActiveUNKO=False,bEnableAimAssistPad=True,bEnableAimAssistKeyboard=False,DropItemMaxNum=3000,DropItemMaxNum_UNKO=100,BaseCampMaxNum=128,BaseCampWorkerMaxNum=15,DropItemAliveMaxHours=1.000000,bAutoResetGuildNoOnlinePlayers=False,AutoResetGuildTimeNoOnlinePlayers=72.000000,GuildPlayerMaxNum=20,PalEggDefaultHatchingTime=72.000000,WorkSpeedRate=1.000000,bIsMultiplay=False,bIsPvP=False,bCanPickupOtherGuildDeathPenaltyDrop=False,bEnableNonLoginPenalty=True,bEnableFastTravel=True,bIsStartLocationSelectByMap=True,bExistPlayerAfterLogout=False,bEnableDefenseOtherGuildPlayer=False,bShowPlayerList=False,CoopPlayerMaxNum=4,ServerPlayerMaxNum=32,ServerName=\"palgo\",ServerDescription=\"https://github.com/Hoshinonyaruko/palworld-go\",AdminPassword=\"useradmin\",ServerPassword=\"\",PublicPort=8211,PublicIP=\"\",RCONEnabled=True,RCONPort=25575,Region=\"\",bUseAuth=True,BanListURL=\"https://api.palworldgame.com/api/banlist.txt\")"
 		fmt.Printf("已为您生成默认游戏配置，默认控制台地址:http://127.0.0.1:8000\n")
 		fmt.Printf("控制台默认用户名(在ServerName配置)\n")
 		fmt.Printf("控制台默认密码(在AdminPassword配置)\n")
@@ -540,7 +549,7 @@ func ReadGameWorldSettings(config *Config) (*GameWorldSettings, error) {
 	optionSettingsKey, err := section.GetKey("OptionSettings")
 	if err != nil {
 		fmt.Printf("未找到配置设置,使用游戏默认配置\n")
-		settingsString = "(Difficulty=None,DayTimeSpeedRate=1.000000,NightTimeSpeedRate=1.000000,ExpRate=1.000000,PalCaptureRate=1.000000,PalSpawnNumRate=1.000000,PalDamageRateAttack=1.000000,PalDamageRateDefense=1.000000,PlayerDamageRateAttack=1.000000,PlayerDamageRateDefense=1.000000,PlayerStomachDecreaceRate=1.000000,PlayerStaminaDecreaceRate=1.000000,PlayerAutoHPRegeneRate=1.000000,PlayerAutoHpRegeneRateInSleep=1.000000,PalStomachDecreaceRate=1.000000,PalStaminaDecreaceRate=1.000000,PalAutoHPRegeneRate=1.000000,PalAutoHpRegeneRateInSleep=1.000000,BuildObjectDamageRate=1.000000,BuildObjectDeteriorationDamageRate=1.000000,CollectionDropRate=1.000000,CollectionObjectHpRate=1.000000,CollectionObjectRespawnSpeedRate=1.000000,EnemyDropItemRate=1.000000,DeathPenalty=All,bEnablePlayerToPlayerDamage=False,bEnableFriendlyFire=False,bEnableInvaderEnemy=True,bActiveUNKO=False,bEnableAimAssistPad=True,bEnableAimAssistKeyboard=False,DropItemMaxNum=3000,DropItemMaxNum_UNKO=100,BaseCampMaxNum=128,BaseCampWorkerMaxNum=15,DropItemAliveMaxHours=1.000000,bAutoResetGuildNoOnlinePlayers=False,AutoResetGuildTimeNoOnlinePlayers=72.000000,GuildPlayerMaxNum=20,PalEggDefaultHatchingTime=72.000000,WorkSpeedRate=1.000000,bIsMultiplay=False,bIsPvP=False,bCanPickupOtherGuildDeathPenaltyDrop=False,bEnableNonLoginPenalty=True,bEnableFastTravel=True,bIsStartLocationSelectByMap=True,bExistPlayerAfterLogout=False,bEnableDefenseOtherGuildPlayer=False,CoopPlayerMaxNum=4,ServerPlayerMaxNum=32,ServerName=\"palgo\",ServerDescription=\"https://github.com/Hoshinonyaruko/palworld-go\",AdminPassword=\"useradmin\",ServerPassword=\"\",PublicPort=8211,PublicIP=\"\",RCONEnabled=True,RCONPort=25575,Region=\"\",bUseAuth=True,BanListURL=\"https://api.palworldgame.com/api/banlist.txt\")"
+		settingsString = "(Difficulty=None,DayTimeSpeedRate=1.000000,NightTimeSpeedRate=1.000000,ExpRate=1.000000,PalCaptureRate=1.000000,PalSpawnNumRate=1.000000,PalDamageRateAttack=1.000000,PalDamageRateDefense=1.000000,PlayerDamageRateAttack=1.000000,PlayerDamageRateDefense=1.000000,PlayerStomachDecreaceRate=1.000000,PlayerStaminaDecreaceRate=1.000000,PlayerAutoHPRegeneRate=1.000000,PlayerAutoHpRegeneRateInSleep=1.000000,PalStomachDecreaceRate=1.000000,PalStaminaDecreaceRate=1.000000,PalAutoHPRegeneRate=1.000000,PalAutoHpRegeneRateInSleep=1.000000,BuildObjectDamageRate=1.000000,BuildObjectDeteriorationDamageRate=1.000000,CollectionDropRate=1.000000,CollectionObjectHpRate=1.000000,CollectionObjectRespawnSpeedRate=1.000000,EnemyDropItemRate=1.000000,DeathPenalty=All,bEnablePlayerToPlayerDamage=False,bEnableFriendlyFire=False,bEnableInvaderEnemy=True,bActiveUNKO=False,bEnableAimAssistPad=True,bEnableAimAssistKeyboard=False,DropItemMaxNum=3000,DropItemMaxNum_UNKO=100,BaseCampMaxNum=128,BaseCampWorkerMaxNum=15,DropItemAliveMaxHours=1.000000,bAutoResetGuildNoOnlinePlayers=False,AutoResetGuildTimeNoOnlinePlayers=72.000000,GuildPlayerMaxNum=20,PalEggDefaultHatchingTime=72.000000,WorkSpeedRate=1.000000,bIsMultiplay=False,bIsPvP=False,bCanPickupOtherGuildDeathPenaltyDrop=False,bEnableNonLoginPenalty=True,bEnableFastTravel=True,bIsStartLocationSelectByMap=True,bExistPlayerAfterLogout=False,bEnableDefenseOtherGuildPlayer=False,bShowPlayerList=False,CoopPlayerMaxNum=4,ServerPlayerMaxNum=32,ServerName=\"palgo\",ServerDescription=\"https://github.com/Hoshinonyaruko/palworld-go\",AdminPassword=\"useradmin\",ServerPassword=\"\",PublicPort=8211,PublicIP=\"\",RCONEnabled=True,RCONPort=25575,Region=\"\",bUseAuth=True,BanListURL=\"https://api.palworldgame.com/api/banlist.txt\")"
 		fmt.Printf("已为您生成默认游戏配置，默认控制台地址:http://127.0.0.1:8000\n")
 		fmt.Printf("控制台默认用户名(在ServerName配置):palgo\n")
 		fmt.Printf("控制台默认密码(在AdminPassword配置):useradmin\n")

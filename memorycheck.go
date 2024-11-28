@@ -50,7 +50,7 @@ func (task *MemoryCheckTask) checkMemory() {
 	if runtime.GOOS == "windows" {
 		cmd = exec.Command("wmic", "OS", "get", "FreePhysicalMemory", "/Value")
 	} else {
-		cmd = exec.Command("sh", "-c", "free | grep Mem | awk '{print $3/$2 * 100.0}'")
+		cmd = exec.Command("sh", "-c", "free | awk 'NR==2{print $3/$2 * 100.0}'")
 	}
 
 	var out bytes.Buffer
@@ -73,7 +73,7 @@ func (task *MemoryCheckTask) checkMemory() {
 		log.Printf("Memory usage is above %v%%. Running clean command.", threshold)
 		// 初始化RCON客户端
 		address := task.Config.Address + ":" + strconv.Itoa(task.Config.WorldSettings.RconPort)
-		rconClient := NewRconClient(address, task.Config.WorldSettings.AdminPassword, task.BackupTask)
+		rconClient := NewRconClient(address, task.Config.WorldSettings.AdminPassword, task.BackupTask, &task.Config)
 		if rconClient == nil {
 			log.Println("RCON客户端初始化失败,无法处理内存使用情况,请按教程正确开启rcon和设置服务端admin密码")
 			return
