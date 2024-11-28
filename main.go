@@ -20,6 +20,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/hoshinonyaruko/palworld-go/config"
+	"github.com/hoshinonyaruko/palworld-go/status"
 	"github.com/hoshinonyaruko/palworld-go/sys"
 	"github.com/hoshinonyaruko/palworld-go/tool"
 	"github.com/hoshinonyaruko/palworld-go/webui"
@@ -46,8 +47,8 @@ func main() {
 	if runtime.GOOS == "windows" {
 		//检查程序是否运行在合适目录
 		if _, err := os.Stat("PalServer.exe"); os.IsNotExist(err) {
-			// PalServer.exe不存在，查找PalServer-Win64-Test-Cmd.exe的路径
-			cmd := exec.Command("cmd", "/C", "wmic process where name='PalServer-Win64-Test-Cmd.exe' get ExecutablePath")
+			// PalServer.exe不存在，查找PalServer-Win64-Shipping-Cmd.exe的路径
+			cmd := exec.Command("cmd", "/C", "wmic process where name='PalServer-Win64-Shipping-Cmd.exe' get ExecutablePath")
 			output, err := cmd.Output()
 			if err != nil {
 				fmt.Println("Failed to execute command:", err)
@@ -56,7 +57,7 @@ func main() {
 
 			outputStr := string(output)
 			if !strings.Contains(outputStr, "ExecutablePath") {
-				fmt.Println("PalServer-Win64-Test-Cmd.exe not found")
+				fmt.Println("PalServer-Win64-Shipping-Cmd.exe not found")
 				fmt.Println("Notice:Please restart this program after launching the game server, and the installation will be completed automatically, releasing a launch icon to the desktop.")
 				fmt.Println("请打开游戏服务端后再次运行本程序，将会自动完成安装，释放启动图标到桌面。")
 				showMessage("提示", "请打开游戏服务端保持运行后的同时运行本程序,\n将会自动寻找游戏路径,\n自动完成安装,并释放启动图标到桌面。\n请到桌面使用StartPalWorld.bat启动我。\nNotice:Please restart this program after launching the game server, and the installation will be completed automatically, releasing a launch icon to the desktop.")
@@ -106,6 +107,8 @@ func main() {
 			fmt.Println("PalServer.exe exists in the current directory.")
 		}
 	}
+	//还原状态
+	status.SetManualServerShutdown(false)
 
 	// 设置监控和自动重启
 	supervisor := NewSupervisor(jsonconfig)

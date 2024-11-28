@@ -15,6 +15,7 @@
         <q-tab name="ban-manage" label="封禁玩家管理" />
         <q-tab name="server-check" label="主机管理" />
         <q-tab name="save-manage" label="存档管理" />
+        <q-tab name="palguard-manage" label="palguard管理" />
       </q-tabs>
     </q-header>
 
@@ -38,6 +39,13 @@
             @click="restartServer"
             class="q-mt-md"
           />
+          <!-- 答疑按钮 -->
+          <q-btn
+            color="secondary"
+            label="遇到问题,答疑按钮"
+            @click="getGroupLink"
+            class="q-mt-md"
+          />
           <!-- 文本输入框 -->
           <q-input
             filled
@@ -58,7 +66,7 @@
           />
           <q-toggle
             v-model="config.communityServer"
-            label="启动为社区服务器(需设置steam路径)"
+            label="启动为社区服务器"
             class="q-my-md"
           />
           <q-toggle
@@ -74,6 +82,16 @@
           <q-toggle
             v-model="config.enableUe4Debug"
             label="是否开启UE4窗口(关闭可以解决闪退,内存占用问题)"
+            class="q-my-md"
+          />
+          <q-toggle
+            v-model="config.overrideDLL"
+            label="是否覆盖dll(不开请自己管理palguard和ue4的dll)"
+            class="q-my-md"
+          />
+          <q-toggle
+            v-model="config.usePalserverexe"
+            label="是否使用Palserverexe启动服务端(开启=有字版,不开启=无字版)"
             class="q-my-md"
           />
           <q-toggle
@@ -131,12 +149,6 @@
             filled
             v-model="config.backupPath"
             label="游戏存档备份存放路径"
-            class="q-my-md"
-          />
-          <q-input
-            filled
-            v-model="config.steamPath"
-            label="Steam安装路径(启动社区服务器用)"
             class="q-my-md"
           />
           <q-input
@@ -293,20 +305,20 @@
         </div>
       </q-page>
       <q-page padding v-if="tab === 'server'">
-         <!-- 保存按钮 -->
-         <q-btn
-         color="primary"
-         label="保存"
-         @click="saveConfig"
-         class="q-mt-md"
-       />
-       <!-- 重启服务端按钮 -->
-       <q-btn
-         color="secondary"
-         label="重启服务端"
-         @click="restartServer"
-         class="q-mt-md"
-       />
+        <!-- 保存按钮 -->
+        <q-btn
+          color="primary"
+          label="保存"
+          @click="saveConfig"
+          class="q-mt-md"
+        />
+        <!-- 重启服务端按钮 -->
+        <q-btn
+          color="secondary"
+          label="重启服务端"
+          @click="restartServer"
+          class="q-mt-md"
+        />
         <!-- 服务端配置修改页面内容 -->
         <div class="q-gutter-xs q-mt-md">
           <div class="text-subtitle2">服务端配置修改</div>
@@ -719,6 +731,11 @@
             class="q-my-md"
           />
           <q-toggle
+            v-model="config.worldSettings.showPlayerList"
+            label="启用服务器内可以查看其他玩家列表"
+            class="q-my-md"
+          />
+          <q-toggle
             v-model="config.worldSettings.isMultiplay"
             label="是否多人游戏"
             class="q-my-md"
@@ -1023,6 +1040,10 @@
         <save-manage />
       </q-page>
 
+      <!-- palguard管理组件 -->
+      <q-page padding v-if="tab === 'palguard-manage'">
+        <palguard-manage />
+      </q-page>
     </q-page-container>
   </q-layout>
 </template>
@@ -1036,6 +1057,9 @@ import RunningProcessStatus from 'components/RunningProcessStatus.vue';
 import PlayerManage from 'components/PlayerManage.vue';
 import SaveManage from 'components/SaveManage.vue';
 import BanManage from 'components/BanManage.vue';
+import PalguardManage from 'components/PalguardManage.vue';
+
+const $q = useQuasar();
 
 //给components传递数据
 const props = defineProps({
@@ -1112,7 +1136,6 @@ function removePlayer(index) {
 }
 
 onMounted(async () => {
-  const $q = useQuasar();
   try {
     const response = await axios.get('/api/getjson', {
       withCredentials: true, // 确保携带 cookie
@@ -1132,7 +1155,6 @@ onMounted(async () => {
 });
 
 const saveConfig = async () => {
-  const $q = useQuasar();
   try {
     await axios.post('/api/savejson', config.value, {
       withCredentials: true, // 确保携带 cookie
@@ -1144,8 +1166,8 @@ const saveConfig = async () => {
   } catch (error) {
     console.error('Error saving configuration:', error);
     $q.notify({
-      type: 'negative',
-      message: '保存配置失败',
+      type: 'positive',
+      message: '配置已保存！',
     });
   }
 };
