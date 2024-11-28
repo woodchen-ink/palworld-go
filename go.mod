@@ -10,7 +10,7 @@ require (
 	github.com/boltdb/bolt v1.3.1
 	github.com/gin-gonic/gin v1.9.1
 	github.com/google/uuid v1.6.0
-	github.com/gorilla/websocket v1.5.1
+	github.com/gorilla/websocket v1.5.3
 	github.com/shirou/gopsutil v3.21.11+incompatible
 	golang.org/x/net v0.17.0
 	gopkg.in/ini.v1 v1.67.0
