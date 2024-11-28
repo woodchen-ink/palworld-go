@@ -39,13 +39,6 @@
             @click="restartServer"
             class="q-mt-md"
           />
-          <!-- 答疑按钮 -->
-          <q-btn
-            color="secondary"
-            label="遇到问题,答疑按钮"
-            @click="getGroupLink"
-            class="q-mt-md"
-          />
           <!-- 文本输入框 -->
           <q-input
             filled
@@ -957,7 +950,7 @@
       <q-page padding v-if="tab === 'player-white'">
         <!-- 白名单配置修改页面内容 -->
         <div class="q-gutter-xs q-mt-md">
-          <div class="text-subtitle2">白名单配置修改</div>
+          <div class="text-subtitle2">白名单配置修��</div>
           <div class="q-my-md">
             <div class="text-h6">白名单玩家</div>
             <!-- 保存按钮 -->

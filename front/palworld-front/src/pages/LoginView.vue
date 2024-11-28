@@ -16,12 +16,12 @@
         @reset="clearForm"
       >
         <q-card-section class="q-gutter-md">
-          <q-input v-model="username" filled clearable label="用户名" required>
+          <q-input v-model="state.username" filled clearable label="用户名" required>
             <template v-slot:prepend><q-icon name="person" /></template>
           </q-input>
 
           <q-input
-            v-model="password"
+            v-model="state.password"
             type="password"
             filled
             clearable
@@ -42,76 +42,100 @@
 </template>
 
 <script setup lang="ts">
-import api from '../api/api';
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
+import api from '../api/api';
+
+interface LoginState {
+  isLoggedIn: boolean;
+  username: string;
+  password: string;
+  loginError: string;
+  loading: boolean;
+}
+
+// 使用接口定义状态
+const state = ref<LoginState>({
+  isLoggedIn: false,
+  username: '',
+  password: '',
+  loginError: '',
+  loading: false
+});
 
 const $router = useRouter();
-const isLoggedIn = ref(false);
-const username = ref('');
-const password = ref('');
-const loginError = ref('');
 const $q = useQuasar();
 
-async function checkLoggedIn() {
+// 登录方法
+const login = async () => {
+  if (!state.value.username || !state.value.password) {
+    $q.notify({
+      color: 'warning',
+      message: '请输入用户名和密码',
+      icon: 'warning'
+    });
+    return;
+  }
+
+  state.value.loading = true;
   try {
-    // Await the axios promise, then the function it resolves to, then destructure the data property from the result
-    // 直接从 api.checkLoginStatus() 获取返回值
+    const loginResponse = await api.loginApi(
+      state.value.username,
+      state.value.password
+    );
+    
+    if (loginResponse.isLoggedIn) {
+      state.value.isLoggedIn = true;
+      $q.notify({
+        color: 'positive',
+        message: '登录成功',
+        icon: 'check_circle'
+      });
+      void $router.push('/index');
+    }
+  } catch (err) {
+    state.value.loginError = '登录失败，请检查用户名和密码。请查看程序命令行窗口输出的默认用户名密码。';
+    $q.notify({
+      color: 'negative',
+      message: state.value.loginError,
+      icon: 'error'
+    });
+  } finally {
+    state.value.loading = false;
+  }
+};
+
+// 清除表单
+const clearForm = () => {
+  state.value.username = '';
+  state.value.password = '';
+  state.value.loginError = '';
+};
+
+// 检查登录状态
+const checkLoggedIn = async () => {
+  try {
     const loginStatus = await api.checkLoginStatus();
-    isLoggedIn.value = loginStatus.isLoggedIn;
-    if (isLoggedIn.value) {
+    state.value.isLoggedIn = loginStatus.isLoggedIn;
+    if (state.value.isLoggedIn) {
       void $router.push('/index');
     }
   } catch (err) {
     console.error('Error checking login status:', err);
-    isLoggedIn.value = false;
+    state.value.isLoggedIn = false;
   }
-}
+};
 
-function clearForm() {
-  username.value = '';
-  password.value = '';
-}
-
-async function login() {
-  if (!username.value || !password.value) return;
-  try {
-    // 直接获取 loginApi 方法的返回值
-    const loginResponse = await api.loginApi(username.value, password.value);
-    if (loginResponse.isLoggedIn) {
-      isLoggedIn.value = true;
-      void $router.push('/index');
-    } else {
-      loginError.value =
-      'Login failed, please check the username and password. Please refer to the program\'s command line window for the default username and password.\n登录失败，请检查用户名和密码。请查看程序命令行窗口输出的默认用户名密码。';
-      // 显示通知
-      $q.notify({
-        color: 'negative',
-        position: 'top',
-        message: loginError.value,
-        icon: 'report_problem',
-      });
-    }
-  } catch (err) {
-    loginError.value =
-    'Login failed, please check the username and password. Please refer to the program\'s command line window for the default username and password.\n登录失败，请检查用户名和密码。请查看程序命令行窗口输出的默认用户名密码。';
-    $q.notify({
-      color: 'negative',
-      position: 'top',
-      message: loginError.value,
-      icon: 'report_problem',
-    });
-  }
-}
-
+// 生命周期钩子
 onMounted(() => {
-  checkLoggedIn().catch((error) => {
-    console.error('Failed to check login status:', error);
-  });
+  void checkLoggedIn();
 });
 </script>
 
 <style scoped>
-/* 如果需要添加或修改样式，可以在这里进行 */
+.q-card {
+  max-width: 400px;
+  width: 100%;
+}
 </style>
