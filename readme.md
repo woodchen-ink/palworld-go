@@ -38,41 +38,6 @@ https://curl.qcloud.com/8K1KhiJd
 
 【腾讯云】热卖套餐配置低至26元/月起，助您一键开服，即刻畅玩，立享优惠！
 
-## 机器人
-初步实现了Onebotv11标准的palworld机器人
-
-可配合https://gensokyo.bot 项目在 QQ群 QQ频道 kook频道 Discord群组 部署
-
-支持的机器人特性:面板即机器人 有面板，未搭建机器人的用户，可去中心化的公用已搭建的机器人
-
-目前机器人支持指令:
-
-    	"getbot - 获取机器人信息",
-
-		"player - 获取玩家信息",
-
-		"update player - 更新玩家信息",
-
-		"玩家列表 - 显示玩家列表",
-
-		"刷新玩家列表 - 刷新并显示玩家列表",
-
-		"kick - 踢出玩家",
-
-		"踢人 - 踢出玩家",
-
-		"ban - 封禁玩家",
-
-		"封禁 - 封禁玩家",
-
-		"Broadcast - 发送广播消息",
-
-		"广播 - 发送广播消息",
-
-		"重启服务器 - 重启游戏服务器",
-
-		"restart - 重启游戏服务器",
-
 ## 使用方法
 
 The user interface language of this project is in Chinese. 

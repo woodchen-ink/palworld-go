@@ -71,6 +71,10 @@ jobs:
         if [ "$GOOS" = "windows" ]; then
           OUTPUT_NAME="${OUTPUT_NAME}.exe"
         fi
+        
+        echo "Building for OS: $GOOS, ARCH: $GOARCH"
+        echo "Output name: $OUTPUT_NAME"
+        
         go build -v -ldflags="-s -w" -o "output/${OUTPUT_NAME}"
 
     - name: Compress executable files with UPX
